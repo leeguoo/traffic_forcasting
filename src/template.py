@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv('../local/train_1.csv',index_col='Page',nrows=1000)
+df = pd.read_csv('../input/train_1.csv',index_col='Page',nrows=1000)
 
 df = df.stack().reset_index()
 
