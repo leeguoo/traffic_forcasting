@@ -10,6 +10,7 @@ df["traffic"] = raw.stack()
 
 #get time-series features
 for num in [62,63,64,65,66,67,68]:
+    print(num)
     tag = "lag_{0}".format(num)
     df[tag] = raw.shift(num,axis=1).stack()
 df = df.dropna(how="any")
@@ -20,14 +21,14 @@ target = 'traffic'
 features.remove(target)
 
 #split train and test
-df = df.reset_index().rename(columns={'level_1':'date'})
-df.date = pd.to_datetime(df.date)
-train = df[df.date<'2016-11-01']
-test = df[df.date>='2016-11-01']
+print("split")
+train = df[df.index.get_level_values(1)<'2016-11-01']
+test = df[df.index.get_level_values(1)>='2016-11-01']
 
 train_X, train_y = train[features], train[target]
 test_X, test_y = test[features], test[target]
 
+print("model")
 #random forest model
 from sklearn.ensemble import RandomForestRegressor
 
