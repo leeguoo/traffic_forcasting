@@ -1,11 +1,11 @@
 import numpy as np
 
-def Num_Sampe(a, b):
+def Num_Smape(a, b):
     if a or b:
-        return 100.0*abs(a-b)/(abs(a)+abs(b))
+        return 200.0*abs(a-b)/(abs(a)+abs(b))
     else:
         return 0.0
 
-def sampe(y_true, y_pred):
-    vsampe = np.vectorize(Num_Sampe)
-    return vsampe(y_true,y_pred).mean()
+def smape(y_true, y_pred):
+    vsmape = np.vectorize(Num_Smape)
+    return vsmape(y_true,y_pred).mean()
