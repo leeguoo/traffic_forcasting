@@ -9,3 +9,7 @@ def Num_Smape(a, b):
 def smape(y_true, y_pred):
     vsmape = np.vectorize(Num_Smape)
     return vsmape(y_true,y_pred).mean()
+
+def XGBsmape(preds,dtrain):
+    y = dtrain.get_label()
+    return 'smape', smape(y,preds)
