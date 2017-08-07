@@ -24,7 +24,7 @@ class WebTraffic(object):
 #            self.df["BWKA_"+tag] = biweekaverage.shift(num,axis=1).stack()
 #            self.df["MA_"+tag] = monthaverage.shift(num,axis=1).stack()
 
-    def LagFea(self, nums=range(7,63,7),lags=[61,91,121]):
+    def LagFea(self, nums=range(7,63,7),lags=[31,61,91]):
         for num in nums:
             for lag in lags:
                 meantag = "mean_{0}_lag_{1}".format(num,lag)
@@ -32,7 +32,7 @@ class WebTraffic(object):
                 mediantag = "median_{0}_lag_{1}".format(num,lag)
                 self.df[mediantag] = self.raw.rolling(num,axis=1).median().shift(lag,axis=1).stack()
 
-    def SeasonLag(self,lags=[61,91]):
+    def SeasonLag(self,lags=[31,91]):
         tmp = self.raw.T
         cols = list(tmp.columns.values)
         index = tmp.index
@@ -83,6 +83,7 @@ features.remove(target)
 print("split")
 train = df[df.index.get_level_values(1)<='2016-10-23']
 test = df[df.index.get_level_values(1)>='2016-11-01']
+test = test[test.index.get_level_values(1)<='2016-12-01']
 
 train_X, train_y = train[features], train[target]
 test_X, test_y = test[features], test[target]

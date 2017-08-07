@@ -1,28 +1,34 @@
 import pandas as pd
+import numpy as np
 
-#read raw data
 
 class WebTraffic(object):
-    def __init__(self):
-        pass
-
-    def ReadTrain(self,trainpath):
-        self.raw = pd.read_csv(trainpath,index_col='Page',nrows=5000)
+    def __init__(self,trainpath):
+        self.raw = pd.read_csv(trainpath,index_col='Page',nrows=1000)
         self.raw = self.raw.fillna(0)
 
         self.df = pd.DataFrame()
-        self.df["traffic"] = self.raw.stack()
+        self.df["traffic"] = self.raw.stack().map(np.log1p)
 
-#    def WKMediaLag(self, lags=[61,91,121,151,181]):
-#        weekmedian = self.raw.rolling(7,axis=1).median()
-#        biweekaverage = weekmedian.rolling(14,axis=1).mean()
-#        monthaverage = weekmedian.rolling(28,axis=1).mean()
-#        for num in lags:
-#            tag = "lag_{0}".format(num)
-#            self.df[tag] = self.raw.shift(num,axis=1).stack()
-#            self.df["WKM_"+tag] = weekmedian.shift(num,axis=1).stack()
-#            self.df["BWKA_"+tag] = biweekaverage.shift(num,axis=1).stack()
-#            self.df["MA_"+tag] = monthaverage.shift(num,axis=1).stack()
+    def RunAll(self):
+        self.WKMediaLag()
+        self.LagFea()
+        self.SeasonLag()
+        self.Agent()
+        self.Access()
+        self.Lang()
+        self.df = self.df.dropna(how='any')
+
+    def WKMediaLag(self, lags=[61,91,121,151,181]):
+        weekmedian = self.raw.rolling(7,axis=1).median()
+        biweekaverage = weekmedian.rolling(14,axis=1).mean()
+        monthaverage = weekmedian.rolling(28,axis=1).mean()
+        for num in lags:
+            tag = "lag_{0}".format(num)
+            self.df[tag] = self.raw.shift(num,axis=1).stack()
+            self.df["WKM_"+tag] = weekmedian.shift(num,axis=1).stack()
+            self.df["BWKA_"+tag] = biweekaverage.shift(num,axis=1).stack()
+            self.df["MA_"+tag] = monthaverage.shift(num,axis=1).stack()
 
     def LagFea(self, nums=range(7,63,7),lags=[61,91,121]):
         for num in nums:
@@ -38,14 +44,13 @@ class WebTraffic(object):
         index = tmp.index
         tmp["date"] = pd.to_datetime(tmp.index)
 
-#        for tag in ["month","day","dayofweek","weekofyear","dayofyear"]:
         for tag in ["dayofweek","day"]:
              if tag == "day":
                  tmp[tag] = tmp.date.dt.day
-                 nums = [2,3]
+                 nums = [1,2,3]
              elif tag == "dayofweek":
                  tmp[tag] = tmp.date.dt.dayofweek
-                 nums = [2,4,8,12]
+                 nums = [1,2,4,8,12]
              gp = tmp[cols+[tag]].groupby(tag)
              for num in nums:
                  tmpMean = gp.rolling(num).mean().drop(tag,axis=1).reset_index().sort_values("level_1").set_index("level_1")[cols].T
@@ -54,24 +59,35 @@ class WebTraffic(object):
                      self.df["{0}_mean_{1}_{2}".format(tag,num,lag)] = tmpMean.shift(lag,axis=1).stack()
                      self.df["{0}_median_{1}_{2}".format(tag,num,lag)] = tmpMedian.shift(lag,axis=1).stack()
 
-    def Dummies(self):
-        for tag, i, j in zip(["access","agent","lang"],[1,1,0],[0,1,-1]):
-            tmp = pd.get_dummies(self.df.index.get_level_values(0)
-                                 .map(lambda x: x.split(".wikipedia.org_")[i].split("_")[j]),
-                                 prefix=tag)
-            for col in list(tmp.columns.values):
-                if tag in col:
-                    self.df[col] = list(tmp[col])
+    def Agent(self):
+        tmp = pd.get_dummies(self.df.index.get_level_values(0).map(lambda x: x.lower().split("_")[-1]),
+                             drop_first=True,
+                             prefix="agent")
+        for col in list(tmp.columns.values):
+            self.df[col] = list(tmp[col])
+
+
+    def Access(self):
+        tmp = pd.get_dummies(self.df.index.get_level_values(0).map(lambda x: x.lower().split("_")[-2]),
+                             prefix="access")
+        for col in list(tmp.columns.values):
+            if "access" in col:
+                self.df[col] = list(tmp[col])
+
+    def Lang(self):
+        def getLang(x):
+            if '.wikipedia.org' in x.lower():
+                return x.lower().split(".wikipedia.org")[0].split("_")[-1]
+            else:
+                return "media"
+        tmp = pd.get_dummies(self.df.index.get_level_values(0).map(getLang))
+        for col in list(tmp.columns.values):
+            self.df[col] = list(tmp[col])
 
 trainpath = '../../input/train_1.csv'
-WT = WebTraffic()
-WT.ReadTrain(trainpath)
-#WT.WKMediaLag()
-WT.LagFea()
-WT.SeasonLag()
-WT.Dummies()
-df = WT.df.dropna(how='any')
-#print df
+WT = WebTraffic(trainpath)
+WT.RunAll()
+df = WT.df
 
 #find feature and target names
 features = list(df.columns.values)
@@ -90,7 +106,7 @@ test_X, test_y = test[features], test[target]
 print("model")
 
 from xgboost import XGBRegressor
-from smape import XGBsmape
+from smape import XGBsmape, smape
 
 xgbr = XGBRegressor(max_depth=9, 
                     learning_rate=0.05, 
@@ -107,3 +123,6 @@ xgbr.fit(train_X,train_y,
          early_stopping_rounds=10,
          verbose=True)
 
+print(smape(np.expm1(test_y),np.expm1(xgbr.predict(test_X))))
+
+print sum(np.expm1(xgbr.predict(test_X))<0)
