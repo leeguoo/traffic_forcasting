@@ -4,8 +4,9 @@ import numpy as np
 
 class WebTraffic(object):
     def __init__(self,trainpath):
-        for df in pd.read_csv(trainpath,chunksize=200,nrows=1000):
-
+        flag = 0
+        for raw in pd.read_csv(trainpath,index_col='Page',chunksize=100):
+            self.raw = raw.applymap(np.log1p)
             #self.raw = pd.read_csv(trainpath,index_col='Page',nrows=1)
             start = self.raw.columns.max()
             end = '2017-03-01'
@@ -16,13 +17,17 @@ class WebTraffic(object):
             self.raw = self.raw.T.T
     
             self.df = pd.DataFrame()
-            self.df["traffic"] = self.raw.stack(dropna=False).map(np.log1p)
+            self.df["traffic"] = self.raw.stack(dropna=False)#.map(np.log1p)
     
             self.RunAll()
-            
-            f = open('../../data/data.csv','a')
-            self.df.to_csv(f,index=False,header=False)
-            f.close()
+
+            if flag== 0:
+                self.df.to_csv('../../data/data.csv',index=False)
+                flag += 1
+            else:
+                f = open('../../data/data.csv','a')
+                self.df.to_csv(f,index=False,header=False)
+                f.close()
 
     def RunAll(self):
         self.WKMediaLag()
