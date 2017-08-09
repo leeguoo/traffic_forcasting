@@ -4,11 +4,14 @@ import numpy as np
 
 class WebTraffic(object):
     def __init__(self,trainpath):
-        self.raw = pd.read_csv(trainpath,index_col='Page',nrows=5000)
+        self.raw = pd.read_csv(trainpath,index_col='Page',nrows=500)
 #        self.raw = self.raw.fillna(0)
 
+#        print self.raw
+#        print '--'
+        self.raw = self.raw.applymap(np.log1p)
         self.df = pd.DataFrame()
-        self.df["traffic"] = self.raw.stack().map(np.log1p)
+        self.df["traffic"] = self.raw.stack()#.map(np.log1p)
 
     def RunAll(self):
         self.WKMediaLag()
@@ -17,7 +20,7 @@ class WebTraffic(object):
         self.Agent()
         self.Access()
         self.Lang()
-        self.df = self.df[self.df.index.get_level_values(1)>='2016-01-01']
+        self.df = self.df[self.df.index.get_level_values(1)>='2016-02-01']
 #        self.df = self.df.dropna(how='any')
 
     def WKMediaLag(self, lags=[61,91,121,151,181]):
@@ -110,7 +113,7 @@ from xgboost import XGBRegressor
 from smape import XGBsmape, smape
 
 xgbr = XGBRegressor(max_depth=9, 
-                    learning_rate=0.05, 
+                    learning_rate=0.02, 
                     n_estimators=1000,
                     silent=True, 
                     objective='reg:linear', 
@@ -127,3 +130,5 @@ xgbr.fit(train_X,train_y,
 print(smape(np.expm1(test_y),np.expm1(xgbr.predict(test_X))))
 
 print sum(np.expm1(xgbr.predict(test_X))<0)
+
+print sorted(list(zip(features,xgbr.feature_importances_)),key=lambda x: x[-1])
