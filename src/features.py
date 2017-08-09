@@ -5,8 +5,8 @@ import numpy as np
 class WebTraffic(object):
     def __init__(self,trainpath):
         flag = 0
-        for raw in pd.read_csv(trainpath,index_col='Page',chunksize=1):
-            self.raw = raw
+        for raw in pd.read_csv(trainpath,index_col='Page',chunksize=100):
+            self.raw = raw.applymap(np.log1p)
             #self.raw = pd.read_csv(trainpath,index_col='Page',nrows=1)
             start = self.raw.columns.max()
             end = '2017-03-01'
@@ -17,7 +17,7 @@ class WebTraffic(object):
             self.raw = self.raw.T.T
     
             self.df = pd.DataFrame()
-            self.df["traffic"] = self.raw.stack(dropna=False).map(np.log1p)
+            self.df["traffic"] = self.raw.stack(dropna=False)#.map(np.log1p)
     
             self.RunAll()
 
